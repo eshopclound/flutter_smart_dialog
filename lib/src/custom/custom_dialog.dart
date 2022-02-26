@@ -9,6 +9,7 @@ import 'base_dialog.dart';
 
 ///main function : custom dialog
 class CustomDialog extends BaseDialog {
+  static List<String> tagList = [];
   CustomDialog({
     required Config config,
     required OverlayEntry overlayEntry,
@@ -46,10 +47,21 @@ class CustomDialog extends BaseDialog {
     proxy.dialogList.add(dialogInfo);
     if (tag != null) proxy.dialogMap[tag] = dialogInfo;
     // insert the dialog carrier into the page
-    Overlay.of(DialogProxy.context)!.insert(
-      overlayEntry,
-      below: proxy.entryLoading,
-    );
+
+    OverlayEntry? lastEntry = getBelowOverlayEntry(tag, proxy.dialogMap);
+
+    if (lastEntry != null) {
+      Overlay.of(DialogProxy.context)!.insert(
+        overlayEntry,
+        below: lastEntry,
+      );
+    } else {
+      Overlay.of(DialogProxy.context)!.insert(
+        overlayEntry,
+        below: proxy.entryLoading,
+      );
+    }
+
 
     config.isExist = true;
     config.isExistMain = true;
@@ -89,6 +101,27 @@ class CustomDialog extends BaseDialog {
     if (!proxy.config.isExistLoading) {
       proxy.config.isExist = false;
     }
+  }
+
+  static setTagRank(List<String> tagList) {
+    CustomDialog.tagList = tagList;
+  }
+
+  // 从下往上找最近的 OverlayEntry
+  static OverlayEntry? getBelowOverlayEntry(
+      String? tag, Map<String, DialogInfo> dialogMap) {
+    if (tag != null && CustomDialog.tagList.contains(tag)) {
+      int currentTagIndex = CustomDialog.tagList.indexOf(tag);
+      for (int i = currentTagIndex; i >= 0; i--) {
+        String tmpTag = CustomDialog.tagList[i];
+        if (tmpTag != tag &&
+            dialogMap[tmpTag] != null &&
+            dialogMap[tmpTag]?.dialog.overlayEntry != null) {
+          return dialogMap[tmpTag]?.dialog.overlayEntry;
+        }
+      }
+    }
+    return null;
   }
 }
 
