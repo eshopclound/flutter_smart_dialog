@@ -9,7 +9,10 @@ import 'base_dialog.dart';
 
 ///main function : custom dialog
 class CustomDialog extends BaseDialog {
-  static List<String> tagList = [];
+  static List<String> _tagList = [];
+  static List<OverlayEntry> _overlayList = [];
+  static Map<String, List<OverlayEntry>> _overlayMap = Map();
+
   CustomDialog({
     required Config config,
     required OverlayEntry overlayEntry,
@@ -51,17 +54,17 @@ class CustomDialog extends BaseDialog {
     OverlayEntry? lastEntry = getBelowOverlayEntry(tag, proxy.dialogMap);
 
     if (lastEntry != null) {
-      Overlay.of(DialogProxy.context)!.insert(
-        overlayEntry,
-        below: lastEntry,
-      );
+      if (tag != null) sortOverlayEntry(overlayEntry: overlayEntry, tag: tag);
+      // Overlay.of(DialogProxy.context)!.insert(
+      //   overlayEntry,
+      //   below: lastEntry,
+      // );
     } else {
       Overlay.of(DialogProxy.context)!.insert(
         overlayEntry,
         below: proxy.entryLoading,
       );
     }
-
 
     config.isExist = true;
     config.isExistMain = true;
@@ -96,24 +99,33 @@ class CustomDialog extends BaseDialog {
     await customDialog.mainDialog.dismiss();
     customDialog.overlayEntry.remove();
 
-    if (proxy.dialogList.length != 0) return;
-    proxy.config.isExistMain = false;
-    if (!proxy.config.isExistLoading) {
-      proxy.config.isExist = false;
+    if (proxy.dialogList.length == 0) {
+      proxy.config.isExistMain = false;
+      if (!proxy.config.isExistLoading) {
+        proxy.config.isExist = false;
+      }
+    }
+
+    if (CustomDialog._overlayList.isNotEmpty) {
+      Overlay.of(DialogProxy.context)!.insert(
+        CustomDialog._overlayList.first,
+        below: proxy.entryLoading,
+      );
+      deleteSortOverlayEntry();
     }
   }
 
   static setTagRank(List<String> tagList) {
-    CustomDialog.tagList = tagList;
+    CustomDialog._tagList = tagList;
   }
 
   // 从下往上找最近的 OverlayEntry
   static OverlayEntry? getBelowOverlayEntry(
       String? tag, Map<String, DialogInfo> dialogMap) {
-    if (tag != null && CustomDialog.tagList.contains(tag)) {
-      int currentTagIndex = CustomDialog.tagList.indexOf(tag);
+    if (tag != null && CustomDialog._tagList.contains(tag)) {
+      int currentTagIndex = CustomDialog._tagList.indexOf(tag);
       for (int i = currentTagIndex; i >= 0; i--) {
-        String tmpTag = CustomDialog.tagList[i];
+        String tmpTag = CustomDialog._tagList[i];
         if (tmpTag != tag &&
             dialogMap[tmpTag] != null &&
             dialogMap[tmpTag]?.dialog.overlayEntry != null) {
@@ -123,6 +135,36 @@ class CustomDialog extends BaseDialog {
     }
     return null;
   }
+
+  // 将未显示的弹窗，根据优先级进行排序
+  static sortOverlayEntry({required OverlayEntry overlayEntry , required String tag}) {
+    List<OverlayEntry> list = CustomDialog._overlayMap[tag] ?? [];
+    if (!list.contains(overlayEntry)) {
+      list.add(overlayEntry);
+    }
+    CustomDialog._overlayMap[tag] = list;
+    List<OverlayEntry> overlist = [];
+    CustomDialog._tagList.forEach((element1) {
+      List<OverlayEntry> list2 = CustomDialog._overlayMap[element1] ?? [];
+      list2.forEach((element2) {
+        overlist.add(element2);
+      });
+    });
+    CustomDialog._overlayList = overlist;
+  }
+
+  static deleteSortOverlayEntry() {
+    OverlayEntry overlayEntry = CustomDialog._overlayList.first;
+    String? tag;
+    CustomDialog._overlayMap.forEach((key, value) {
+      if (value.contains(overlayEntry)) {
+        tag = key;
+      }
+    });
+    CustomDialog._overlayMap[tag]?.remove(overlayEntry);
+    CustomDialog._overlayList.remove(overlayEntry);
+  }
+
 }
 
 class DialogInfo {
